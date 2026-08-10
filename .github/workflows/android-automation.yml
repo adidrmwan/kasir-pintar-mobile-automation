@@ -73,6 +73,11 @@ jobs:
         with:
           node-version: '18'
 
+      # arm64 runners don't ship the Android SDK (x86 ubuntu-latest does). Install
+      # it ourselves so the emulator-runner can find sdkmanager/emulator/adb.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Install Appium + UiAutomator2 driver
         run: |
           # Pin a known-good pair: the latest uiautomator2 now requires Appium 3,
