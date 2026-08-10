@@ -33,7 +33,10 @@ jobs:
   #  Option A — GitHub-hosted Linux emulator (needs an x86_64/universal APK)
   # --------------------------------------------------------------------------
   android-test:
-    runs-on: ubuntu-latest
+    # arm64 Linux runner so we can run an arm64-v8a emulator that matches the
+    # app's native libs (the app is arm64-only). Experimental: arm64 hosted
+    # runners + Android emulator are newer/less battle-tested than x86.
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     # Secrets (LOGIN_EMAIL/PASSWORD) and variable APP_DRIVE_ID live in the "dev"
     # environment; this line makes them resolvable via secrets.* / vars.*
@@ -104,7 +107,7 @@ jobs:
         with:
           api-level: ${{ matrix.api-level }}
           target: google_apis
-          arch: x86_64
+          arch: arm64-v8a
           profile: pixel_6
           disable-animations: true
           # Keep the emulator script a SINGLE command — multi-line if/fi here can
