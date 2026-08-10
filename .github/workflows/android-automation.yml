@@ -66,8 +66,10 @@ jobs:
 
       - name: Install Appium + UiAutomator2 driver
         run: |
-          npm install -g appium@2
-          appium driver install uiautomator2
+          # Pin a known-good pair: the latest uiautomator2 now requires Appium 3,
+          # which is incompatible with Appium 2.x. 2.19.0 + uiautomator2 3.7.4 match.
+          npm install -g appium@2.19.0
+          appium driver install uiautomator2@3.7.4
           appium --version
 
       # Download the app from a PUBLIC Google Drive file (too big for a secret).
