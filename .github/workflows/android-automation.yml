@@ -35,6 +35,9 @@ jobs:
   android-test:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # Secrets (LOGIN_EMAIL/PASSWORD) and variable APP_DRIVE_ID live in the "dev"
+    # environment; this line makes them resolvable via secrets.* / vars.*
+    environment: dev
     strategy:
       fail-fast: false
       matrix:
