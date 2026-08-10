@@ -11,14 +11,16 @@ and **Cucumber BDD** (Java 17 + Maven).
 >
 > Jalankan cepat:
 > ```bash
+> # 1) taruh satu file .apk (universal) di src/test/resources/app/
 > export JAVA_HOME="/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home"
 > export ANDROID_HOME="$HOME/Library/Android/sdk"
 > export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
-> ./scripts/install-app.sh                                # install app (lihat src/test/resources/app/)
-> ./scripts/prepare-device.sh org.owline.kasirpintarpro   # grant izin + stay-awake
 > appium &                                                # terminal terpisah (ANDROID_HOME wajib)
-> mvn test -Denv=dev -Dcucumber.filter.tags="@barang"
+> mvn test -Denv=dev -Dcucumber.filter.tags="@barang"     # auto: install app + prepare + run
 > ```
+> Setiap `mvn test` otomatis **fresh-install app** (uninstall+install dari
+> `src/test/resources/app/`) lalu prepare device via hook `@BeforeAll`. Nonaktifkan
+> dengan `-Dapp.autoInstall=false` (mis. kalau CI sudah install lebih dulu).
 >
 > **Catatan device:** disarankan **emulator / device non-MIUI**. Device MIUI
 > (Xiaomi) sangat flaky (cloud-sync + state-restore) dan memblokir adb install.
@@ -66,20 +68,17 @@ Semua konfigurasi ada di
 
 Yang **wajib** disesuaikan sebelum run:
 
-1. **Aplikasi (install ke device)** — taruh app di **`src/test/resources/app/`**
-   lalu install sekali. App-nya **split APK**, jadi:
-   - Split: taruh di `src/test/resources/app/_splits/` (`base.apk` +
-     `split_config.arm64_v8a.apk` + `split_config.xxhdpi.apk`), **atau**
-   - Universal: taruh satu `.apk` langsung di `src/test/resources/app/`.
-
-   Install:
-   ```bash
-   scripts/install-app.sh            # device pertama yang terhubung
-   scripts/install-app.sh <serial>   # device/emulator tertentu
-   ```
-   > Framework **tidak** menginstall/reinstall app sendiri (Appium tak bisa
-   > install split APK tanpa `.aab`); ia menempel ke app terpasang via
-   > `app.package`. Karena itu `app.path` sengaja **dikosongkan**.
+1. **Aplikasi** — cukup **taruh satu file `.apk`** di **`src/test/resources/app/`**.
+   Tiap `mvn test` akan **fresh-install otomatis** (uninstall + install) lewat
+   hook `@BeforeAll` → jadi app selalu baru tiap run, lalu tiap skenario login
+   fresh (`mobile: clearApp`).
+   > `.apk` yang ditaruh harus **universal APK** (satu file berisi semua ABI &
+   > resource). APK **base split** kalau diinstall sendirian gagal
+   > `INSTALL_FAILED_MISSING_SPLIT` — kalau cuma punya split, taruh di
+   > `src/test/resources/app/_splits/` (script menanganinya otomatis).
+   >
+   > Manual/opsional: `scripts/install-app.sh [serial]`. Matikan auto-install
+   > dengan `-Dapp.autoInstall=false`.
 2. **Akun login** — taruh di file **`src/test/resources/config/config.local.properties`**
    (git-ignored, tidak ikut ter-commit):
    ```properties

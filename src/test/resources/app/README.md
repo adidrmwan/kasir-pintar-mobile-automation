@@ -1,9 +1,29 @@
 # App binary folder
 
-Place the **Kasir Pintar Pro** app here so it can be installed onto the
-device/emulator for local runs. It is a **split APK**, so use one of:
+Drop the **Kasir Pintar Pro** APK here, then install it once.
 
-**A) Split APKs (recommended — what we have):**
+## The simple way — one `.apk`
+Put a single **universal APK** in this folder:
+```
+src/test/resources/app/kasir-pintar-pro.apk
+```
+Then:
+```bash
+scripts/install-app.sh            # first connected device
+scripts/install-app.sh <serial>   # a specific device/emulator
+```
+
+> The single `.apk` must be a **universal / standalone** APK (contains all ABIs
+> and resources). A split **base-only** APK installed alone fails with
+> `INSTALL_FAILED_MISSING_SPLIT`. To make a universal APK from an App Bundle:
+> ```bash
+> bundletool build-apks --bundle=app.aab --output=app.apks --mode=universal
+> unzip -p app.apks universal.apk > kasir-pintar-pro.apk
+> ```
+
+## Fallback — split APKs
+If you only have the split APKs, put them under `_splits/` and the install
+script handles them automatically:
 ```
 src/test/resources/app/_splits/
   ├── base.apk
@@ -11,21 +31,7 @@ src/test/resources/app/_splits/
   └── split_config.xxhdpi.apk
 ```
 
-**B) A single universal APK** (built from the .aab with
-`bundletool build-apks --mode=universal`):
-```
-src/test/resources/app/app.apk
-```
-
-Then install it once:
-```bash
-scripts/install-app.sh            # first connected device
-scripts/install-app.sh <serial>   # a specific device/emulator
-```
-
 Notes:
-- A **base-only** APK installed alone fails with `INSTALL_FAILED_MISSING_SPLIT` —
-  you need the config splits too.
-- The framework does **not** reinstall the app (Appium can't install split APKs
-  without the .aab). It attaches to the already-installed app via `app.package`.
+- The framework does **not** reinstall the app during the run; it attaches to
+  the installed app via `app.package`. So `app.path` in config is empty.
 - Everything here is git-ignored — never commit the binaries.

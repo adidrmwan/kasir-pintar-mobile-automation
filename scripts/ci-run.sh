@@ -1,24 +1,14 @@
 #!/usr/bin/env bash
 # ============================================================
 #  CI entry point run INSIDE the Android emulator step.
-#  Installs the app (split or universal), prepares the device,
-#  starts Appium, then runs the test suite.
-#  Env expected: APP_PACKAGE, TAGS, LOGIN_EMAIL, LOGIN_PASSWORD
+#  Starts Appium and runs the suite. The app is fresh-installed and the device
+#  prepared automatically by the @BeforeAll hook (scripts/install-app.sh +
+#  scripts/prepare-device.sh), so this script only starts Appium + mvn.
+#  Env expected: TAGS, LOGIN_EMAIL, LOGIN_PASSWORD
 # ============================================================
 set -euo pipefail
 
-APP_PACKAGE="${APP_PACKAGE:-org.owline.kasirpintarpro}"
 TAGS="${TAGS:-@barang}"
-
-echo "▶ Installing app..."
-if [ -d src/test/resources/app/_splits ]; then
-  adb install-multiple -r -g src/test/resources/app/_splits/*.apk
-else
-  adb install -r -g src/test/resources/app/universal.apk
-fi
-
-echo "▶ Preparing device..."
-bash scripts/prepare-device.sh "$APP_PACKAGE" || true
 
 echo "▶ Starting Appium..."
 appium --log-timestamp --log appium.log &
