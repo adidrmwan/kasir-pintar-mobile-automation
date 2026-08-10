@@ -1,0 +1,24 @@
+# Maven
+target/
+
+# Reports
+/allure-results/
+/allure-report/
+
+# App binaries (do not commit; large & app-specific) — anywhere in the repo
+*.apk
+*.apks
+src/test/resources/app/*.zip
+src/test/resources/app/_splits/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+
+# Local secrets / overrides (real credentials live here, never committed)
+config.local.properties
+**/config/config.local.properties

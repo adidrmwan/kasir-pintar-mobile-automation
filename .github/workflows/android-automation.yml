@@ -1,0 +1,168 @@
+name: Android Automation (Appium + Cucumber)
+
+# ============================================================================
+#  IMPORTANT — read before using:
+#
+#  1) APP ABI: the app splits we have are arm64-v8a. GitHub's Linux runners use
+#     x86_64 emulators (KVM), which CANNOT run arm64 native code. So this
+#     hosted-Linux job only works if you provide an x86_64/universal APK of the
+#     app. If you only have the arm64 build, use the self-hosted job below
+#     (a macOS Apple-Silicon machine, or your Mac) OR a cloud device farm.
+#
+#  2) APP DOWNLOAD: the APK is ~86MB — too big for a GitHub secret (48KB limit).
+#     Host it (GitHub Release asset, S3, or an internal URL) and download it in
+#     CI. Set secret APP_DOWNLOAD_URL to a zip that extracts to
+#     src/test/resources/app/_splits/ (base.apk + split_config.*.apk), or to a
+#     single universal .apk.
+#
+#  3) SECRETS: APP_DOWNLOAD_URL, LOGIN_EMAIL, LOGIN_PASSWORD.
+# ============================================================================
+
+on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: 'Cucumber tags (e.g. @create or "@update or @delete")'
+        required: false
+        default: '@barang'
+  schedule:
+    - cron: '0 2 * * 1'   # Weekly health check (Mon 02:00 UTC)
+
+jobs:
+  # --------------------------------------------------------------------------
+  #  Option A — GitHub-hosted Linux emulator (needs an x86_64/universal APK)
+  # --------------------------------------------------------------------------
+  android-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [ 33 ]
+    env:
+      APP_PACKAGE: org.owline.kasirpintarpro
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Appium + UiAutomator2 driver
+        run: |
+          npm install -g appium@2
+          appium driver install uiautomator2
+          appium --version
+
+      # Download the app from a PUBLIC Google Drive file (too big for a secret).
+      # Set repo variable APP_DRIVE_ID to the Drive file id. The file should be
+      # EITHER a zip of the 3 splits (base + arm64 + xxhdpi) OR a universal .apk.
+      # A base-only APK will fail to install (INSTALL_FAILED_MISSING_SPLIT).
+      - name: Download app from Google Drive
+        env:
+          FILE_ID: ${{ vars.APP_DRIVE_ID || '1dkB4OMvb41gijIOJ_ub0fY5LmLJOQ4BE' }}
+        run: |
+          mkdir -p src/test/resources/app
+          curl -sL "https://drive.usercontent.google.com/download?id=${FILE_ID}&confirm=t" -o app-bundle
+          if unzip -l app-bundle | grep -qE '\.apk$'; then
+            echo "Detected a zip of split APKs"
+            mkdir -p src/test/resources/app/_splits
+            unzip -o app-bundle -d src/test/resources/app/_splits
+          else
+            echo "Detected a single (universal/base) APK"
+            mv app-bundle src/test/resources/app/universal.apk
+          fi
+          ls -R src/test/resources/app
+
+      - name: Run automation on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            set -e
+            # Install the app (split or universal). NOTE: arm64 splits will fail
+            # to install on this x86_64 emulator (INSTALL_FAILED_NO_MATCHING_ABIS).
+            if [ -d src/test/resources/app/_splits ]; then
+              adb install-multiple -r -g src/test/resources/app/_splits/*.apk
+            else
+              adb install -r -g src/test/resources/app/universal.apk
+            fi
+            bash scripts/prepare-device.sh "$APP_PACKAGE" || true
+            appium --log-timestamp --log appium.log &
+            npx wait-on -t 60000 http://127.0.0.1:4723/status
+            mvn test -Denv=dev \
+              -Dcucumber.filter.tags="${{ github.event.inputs.tags || '@barang' }}" \
+              -Dlogin.email="${{ secrets.LOGIN_EMAIL }}" \
+              -Dlogin.password="${{ secrets.LOGIN_PASSWORD }}"
+
+      - name: Upload reports & logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts
+          path: |
+            target/cucumber-report/
+            allure-results/
+            appium.log
+          if-no-files-found: ignore
+
+  # --------------------------------------------------------------------------
+  #  Option B — Self-hosted runner (recommended for the arm64 app)
+  #  Register your Mac/device host as a self-hosted runner with label
+  #  'android-arm'. It reuses the locally-installed Appium/JDK/SDK and can run an
+  #  arm64 emulator (or a connected device). Disabled by default.
+  # --------------------------------------------------------------------------
+  android-test-selfhosted:
+    if: ${{ false }}   # flip to true once a self-hosted runner is registered
+    runs-on: [ self-hosted, android-arm ]
+    timeout-minutes: 60
+    env:
+      APP_PACKAGE: org.owline.kasirpintarpro
+      ANDROID_HOME: ${{ env.HOME }}/Library/Android/sdk
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install app on the connected device/emulator
+        run: |
+          adb wait-for-device
+          adb install-multiple -r -g src/test/resources/app/_splits/*.apk || true
+          bash scripts/prepare-device.sh "$APP_PACKAGE" || true
+      - name: Start Appium
+        run: |
+          appium --log-timestamp --log appium.log &
+          npx wait-on -t 60000 http://127.0.0.1:4723/status
+      - name: Run automation
+        run: |
+          mvn test -Denv=dev \
+            -Dcucumber.filter.tags="${{ github.event.inputs.tags || '@barang' }}" \
+            -Dlogin.email="${{ secrets.LOGIN_EMAIL }}" \
+            -Dlogin.password="${{ secrets.LOGIN_PASSWORD }}"
+      - name: Upload reports & logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts-selfhosted
+          path: |
+            target/cucumber-report/
+            allure-results/
+            appium.log
+          if-no-files-found: ignore
