@@ -138,11 +138,11 @@ jobs:
     timeout-minutes: 60
     env:
       APP_PACKAGE: org.owline.kasirpintarpro
-      ANDROID_HOME: ${{ env.HOME }}/Library/Android/sdk
     steps:
       - uses: actions/checkout@v4
       - name: Install app on the connected device/emulator
         run: |
+          # ANDROID_HOME comes from the self-hosted runner's own environment.
           adb wait-for-device
           adb install-multiple -r -g src/test/resources/app/_splits/*.apk || true
           bash scripts/prepare-device.sh "$APP_PACKAGE" || true
