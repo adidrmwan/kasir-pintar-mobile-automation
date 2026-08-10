@@ -38,7 +38,7 @@ public final class DriverManager {
         }
 
         String appPath = ConfigReader.get("app.path");
-        File apk = (appPath == null) ? null : new File(appPath);
+        File apk = (appPath == null || appPath.isBlank()) ? null : new File(appPath);
         if (apk != null && apk.exists()) {
             options.setApp(apk.getAbsolutePath());
         } else {

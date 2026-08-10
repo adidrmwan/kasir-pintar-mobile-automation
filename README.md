@@ -14,6 +14,7 @@ and **Cucumber BDD** (Java 17 + Maven).
 > export JAVA_HOME="/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home"
 > export ANDROID_HOME="$HOME/Library/Android/sdk"
 > export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
+> ./scripts/install-app.sh                                # install app (lihat src/test/resources/app/)
 > ./scripts/prepare-device.sh org.owline.kasirpintarpro   # grant izin + stay-awake
 > appium &                                                # terminal terpisah (ANDROID_HOME wajib)
 > mvn test -Denv=dev -Dcucumber.filter.tags="@barang"
@@ -65,9 +66,20 @@ Semua konfigurasi ada di
 
 Yang **wajib** disesuaikan sebelum run:
 
-1. **Aplikasi** — salah satu:
-   - Taruh APK di `src/test/resources/app/kasir-pintar-pro.apk` (auto-install), **atau**
-   - Kosongkan/hapus `app.path` dan isi `app.package` + `app.activity` untuk app yang sudah terpasang.
+1. **Aplikasi (install ke device)** — taruh app di **`src/test/resources/app/`**
+   lalu install sekali. App-nya **split APK**, jadi:
+   - Split: taruh di `src/test/resources/app/_splits/` (`base.apk` +
+     `split_config.arm64_v8a.apk` + `split_config.xxhdpi.apk`), **atau**
+   - Universal: taruh satu `.apk` langsung di `src/test/resources/app/`.
+
+   Install:
+   ```bash
+   scripts/install-app.sh            # device pertama yang terhubung
+   scripts/install-app.sh <serial>   # device/emulator tertentu
+   ```
+   > Framework **tidak** menginstall/reinstall app sendiri (Appium tak bisa
+   > install split APK tanpa `.aab`); ia menempel ke app terpasang via
+   > `app.package`. Karena itu `app.path` sengaja **dikosongkan**.
 2. **Akun login** — taruh di file **`src/test/resources/config/config.local.properties`**
    (git-ignored, tidak ikut ter-commit):
    ```properties
@@ -76,9 +88,9 @@ Yang **wajib** disesuaikan sebelum run:
    ```
 3. **Device** — sesuaikan `device.name` / `platform.version` bila perlu.
 
-> App target sudah terverifikasi: **Kasir Pintar** `org.owline.kasirpintar`
-> (activity `.SplashScreen`), versi **5.1.2**. Package/activity sudah terisi
-> di `config.properties`.
+> App target: **Kasir Pintar PRO** `org.owline.kasirpintarpro` (activity
+> `.SplashScreen`), versi **4.1.2**. Package/activity sudah terisi di
+> `config.properties`.
 
 Setiap key bisa dioverride dari CLI, contoh:
 ```bash
@@ -90,9 +102,10 @@ mvn test -Dlogin.email=qa@demo.com -Dlogin.password=secret
 > yang mengubah id, perbarui via Appium Inspector.
 >
 > **Catatan alur app:** menu barang ada di **"Product or Service"** (halaman
-> *Management* setelah login), field **Code wajib diisi**, dan "Item Type" sudah
-> default **"Default"**. `no.reset=false` membuat tiap skenario login ulang dari
-> awal (data bersih & independen).
+> *Management* → dari drawer Sales home), field **Code wajib diisi**, dan
+> "Item Type" sudah default **"Default"**. `no.reset=true` + `mobile: clearApp`
+> per skenario membuat tiap skenario mulai bersih & login ulang (data independen),
+> lalu `mobile: terminateApp` menutup app di teardown.
 >
 > **Quirk aplikasi yang sudah ditangani otomatis oleh framework:**
 > - Setelah login muncul dialog **"access your Device type?"** dengan *delay* dan

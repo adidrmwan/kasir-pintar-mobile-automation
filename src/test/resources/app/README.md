@@ -1,13 +1,31 @@
 # App binary folder
 
-Place the Kasir Pintar Pro APK here as:
+Place the **Kasir Pintar Pro** app here so it can be installed onto the
+device/emulator for local runs. It is a **split APK**, so use one of:
 
-    kasir-pintar-pro.apk
+**A) Split APKs (recommended — what we have):**
+```
+src/test/resources/app/_splits/
+  ├── base.apk
+  ├── split_config.arm64_v8a.apk
+  └── split_config.xxhdpi.apk
+```
 
-The framework will auto-install it if `app.path` in
-`src/test/resources/config/config.properties` points to a file that exists.
+**B) A single universal APK** (built from the .aab with
+`bundletool build-apks --mode=universal`):
+```
+src/test/resources/app/app.apk
+```
 
-If the app is already installed on the device/emulator, leave `app.path`
-pointing at a non-existent file and set `app.package` / `app.activity` instead.
+Then install it once:
+```bash
+scripts/install-app.sh            # first connected device
+scripts/install-app.sh <serial>   # a specific device/emulator
+```
 
-The `.apk` is intentionally git-ignored — do not commit the binary.
+Notes:
+- A **base-only** APK installed alone fails with `INSTALL_FAILED_MISSING_SPLIT` —
+  you need the config splits too.
+- The framework does **not** reinstall the app (Appium can't install split APKs
+  without the .aab). It attaches to the already-installed app via `app.package`.
+- Everything here is git-ignored — never commit the binaries.
