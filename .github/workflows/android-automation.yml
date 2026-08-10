@@ -78,7 +78,7 @@ jobs:
       # A base-only APK will fail to install (INSTALL_FAILED_MISSING_SPLIT).
       - name: Download app from Google Drive
         env:
-          FILE_ID: ${{ vars.APP_DRIVE_ID || '1dkB4OMvb41gijIOJ_ub0fY5LmLJOQ4BE' }}
+          FILE_ID: ${{ vars.APP_DRIVE_ID || '1CtOQvxVdsOpEduyfaCyQdO7oi9onbHL5' }}
         run: |
           mkdir -p src/test/resources/app
           curl -sL "https://drive.usercontent.google.com/download?id=${FILE_ID}&confirm=t" -o app-bundle
