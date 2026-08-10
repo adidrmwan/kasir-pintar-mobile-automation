@@ -94,28 +94,19 @@ jobs:
 
       - name: Run automation on emulator
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          TAGS: ${{ github.event.inputs.tags || '@barang' }}
+          LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
+          LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
         with:
           api-level: ${{ matrix.api-level }}
           target: google_apis
           arch: x86_64
           profile: pixel_6
           disable-animations: true
-          script: |
-            set -e
-            # Install the app (split or universal). NOTE: arm64 splits will fail
-            # to install on this x86_64 emulator (INSTALL_FAILED_NO_MATCHING_ABIS).
-            if [ -d src/test/resources/app/_splits ]; then
-              adb install-multiple -r -g src/test/resources/app/_splits/*.apk
-            else
-              adb install -r -g src/test/resources/app/universal.apk
-            fi
-            bash scripts/prepare-device.sh "$APP_PACKAGE" || true
-            appium --log-timestamp --log appium.log &
-            npx wait-on -t 60000 http://127.0.0.1:4723/status
-            mvn test -Denv=dev \
-              -Dcucumber.filter.tags="${{ github.event.inputs.tags || '@barang' }}" \
-              -Dlogin.email="${{ secrets.LOGIN_EMAIL }}" \
-              -Dlogin.password="${{ secrets.LOGIN_PASSWORD }}"
+          # Keep the emulator script a SINGLE command — multi-line if/fi here can
+          # break inside the action. All logic lives in scripts/ci-run.sh.
+          script: bash scripts/ci-run.sh
 
       - name: Upload reports & logs
         if: always()
